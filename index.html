@@ -173,8 +173,22 @@
         .math-question {
             font-size: 24px;
             color: var(--neon-yellow);
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             text-shadow: 0 0 10px var(--neon-yellow);
+        }
+
+        .math-hint {
+            font-family: 'VT323', monospace;
+            font-size: 16px;
+            color: var(--neon-cyan);
+            margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(0, 245, 255, 0.1);
+            border-radius: 5px;
+            border: 1px solid var(--neon-cyan);
+            display: none;
+            max-width: 300px;
+            line-height: 1.4;
         }
 
         .math-input {
@@ -427,6 +441,10 @@
                 <div class="score-value" id="level">1</div>
             </div>
             <div class="score-item">
+                <div class="score-label">MATH</div>
+                <div class="score-value" id="gradeLevel">1st</div>
+            </div>
+            <div class="score-item">
                 <div class="score-label">PREY</div>
                 <div class="score-value" id="preyCount">0</div>
             </div>
@@ -456,6 +474,7 @@
                 <div class="start-instructions">
                     Catch mice 🐭, birds 🐦, and fish 🐟!<br>
                     Solve math problems to score points!<br>
+                    Math gets harder as you level up!<br>
                     Wrong answer = Avoid the DOG! 🐕<br>
                     Collect ⚡ boosts (max 3 per level)<br><br>
                     Use ARROW KEYS or WASD to move<br>
@@ -466,6 +485,7 @@
             
             <div class="math-modal" id="mathModal">
                 <div class="math-question" id="mathQuestion">5 + 3 = ?</div>
+                <div class="math-hint" id="mathHint"></div>
                 <input type="number" class="math-input" id="mathInput" autofocus>
                 <button class="math-submit" id="mathSubmit">OK</button>
                 <div class="math-timer">Time: <span id="mathTimer">10</span>s</div>
@@ -904,59 +924,34 @@
         }
 
         // Show math problem
+        let mathSubmitted = false; // Prevent double submission
+        
         function showMathProblem(caughtPrey) {
             gameState = 'math';
+            mathSubmitted = false;
             
-            // Generate problem based on level
-            let num1, num2, operator, answer;
+            // Generate problem based on level (grade progression)
+            const problem = generateMathProblem(level);
+            currentAnswer = problem.answer;
             
-            if (level <= 2) {
-                // Addition
-                num1 = Math.floor(Math.random() * 10) + 1;
-                num2 = Math.floor(Math.random() * 10) + 1;
-                operator = '+';
-                answer = num1 + num2;
-            } else if (level <= 4) {
-                // Addition or subtraction
-                num1 = Math.floor(Math.random() * 20) + 10;
-                num2 = Math.floor(Math.random() * 10) + 1;
-                if (Math.random() < 0.5) {
-                    operator = '+';
-                    answer = num1 + num2;
-                } else {
-                    operator = '-';
-                    answer = num1 - num2;
-                }
-            } else if (level <= 6) {
-                // Multiplication
-                num1 = Math.floor(Math.random() * 10) + 1;
-                num2 = Math.floor(Math.random() * 10) + 1;
-                operator = '×';
-                answer = num1 * num2;
-            } else {
-                // Mixed operations
-                const ops = ['+', '-', '×'];
-                operator = ops[Math.floor(Math.random() * 3)];
-                if (operator === '×') {
-                    num1 = Math.floor(Math.random() * 12) + 1;
-                    num2 = Math.floor(Math.random() * 12) + 1;
-                    answer = num1 * num2;
-                } else {
-                    num1 = Math.floor(Math.random() * 50) + 10;
-                    num2 = Math.floor(Math.random() * 20) + 1;
-                    answer = operator === '+' ? num1 + num2 : num1 - num2;
-                }
-            }
-            
-            currentAnswer = answer;
-            document.getElementById('mathQuestion').textContent = `${num1} ${operator} ${num2} = ?`;
+            document.getElementById('mathQuestion').textContent = problem.question;
             document.getElementById('mathInput').value = '';
             document.getElementById('mathModal').classList.add('active');
             document.getElementById('mathModal').classList.remove('wrong');
+            
+            // Show or hide explanation (only for 3rd grade and above, level 5+)
+            const hintEl = document.getElementById('mathHint');
+            if (problem.explanation && level >= 5) {
+                hintEl.textContent = '💡 ' + problem.explanation;
+                hintEl.style.display = 'block';
+            } else {
+                hintEl.style.display = 'none';
+            }
+            
             document.getElementById('mathInput').focus();
             
-            // Start timer
-            mathTimer = 10;
+            // Start timer (more time for harder problems)
+            mathTimer = Math.min(10 + Math.floor(level / 3) * 5, 30);
             document.getElementById('mathTimer').textContent = mathTimer;
             mathInterval = setInterval(() => {
                 mathTimer--;
@@ -966,10 +961,167 @@
                 }
             }, 1000);
         }
+        
+        // Generate math problem based on level/grade
+        function generateMathProblem(level) {
+            let question, answer, explanation;
+            
+            if (level <= 2) {
+                // 1ST GRADE: Simple addition (1-10)
+                const a = Math.floor(Math.random() * 10) + 1;
+                const b = Math.floor(Math.random() * 10) + 1;
+                question = `${a} + ${b} = ?`;
+                answer = a + b;
+                explanation = null; // No explanation needed
+                
+            } else if (level <= 4) {
+                // 2ND GRADE: Addition & subtraction (1-20)
+                const a = Math.floor(Math.random() * 15) + 5;
+                const b = Math.floor(Math.random() * Math.min(a, 10)) + 1;
+                if (Math.random() < 0.5) {
+                    question = `${a} + ${b} = ?`;
+                    answer = a + b;
+                } else {
+                    question = `${a} - ${b} = ?`;
+                    answer = a - b;
+                }
+                explanation = null; // No explanation needed
+                
+            } else if (level <= 6) {
+                // 3RD GRADE: Multiplication basics
+                const a = Math.floor(Math.random() * 10) + 1;
+                const b = Math.floor(Math.random() * 10) + 1;
+                question = `${a} × ${b} = ?`;
+                answer = a * b;
+                explanation = `Count ${a} groups of ${b}, or add ${b} + ${b}... (${a} times)`;
+                
+            } else if (level <= 8) {
+                // 4TH GRADE: Division basics
+                const b = Math.floor(Math.random() * 10) + 1;
+                const answer_val = Math.floor(Math.random() * 10) + 1;
+                const a = b * answer_val;
+                question = `${a} ÷ ${b} = ?`;
+                answer = answer_val;
+                explanation = `How many groups of ${b} fit into ${a}? (${a} ÷ ${b})`;
+                
+            } else if (level <= 10) {
+                // 5TH GRADE: Mixed operations, order of operations
+                const a = Math.floor(Math.random() * 10) + 1;
+                const b = Math.floor(Math.random() * 5) + 1;
+                const c = Math.floor(Math.random() * 10) + 1;
+                question = `${a} × ${b} + ${c} = ?`;
+                answer = a * b + c;
+                explanation = `First multiply: ${a} × ${b} = ${a*b}, then add ${c}`;
+                
+            } else if (level <= 12) {
+                // 6TH GRADE: Fractions and percentages
+                const percent = [10, 20, 25, 50][Math.floor(Math.random() * 4)];
+                const whole = [20, 40, 50, 100][Math.floor(Math.random() * 4)];
+                question = `${percent}% of ${whole} = ?`;
+                answer = (percent / 100) * whole;
+                explanation = `${percent}% = ${percent}/100 = ${percent/100}. Multiply: ${percent/100} × ${whole}`;
+                
+            } else if (level <= 14) {
+                // 7TH GRADE: Negative numbers
+                const a = Math.floor(Math.random() * 20) - 10;
+                const b = Math.floor(Math.random() * 20) - 10;
+                question = `(${a}) + (${b}) = ?`;
+                answer = a + b;
+                if (a >= 0 && b >= 0) {
+                    explanation = `Both positive: just add them`;
+                } else if (a < 0 && b < 0) {
+                    explanation = `Both negative: add the numbers, keep negative sign`;
+                } else {
+                    explanation = `Different signs: subtract smaller from larger, keep sign of larger`;
+                }
+                
+            } else if (level <= 16) {
+                // 8TH GRADE: Simple algebra (solve for x)
+                const x_val = Math.floor(Math.random() * 10) + 1;
+                const a = Math.floor(Math.random() * 5) + 2;
+                const b = a * x_val;
+                question = `${a}x = ${b}, x = ?`;
+                answer = x_val;
+                explanation = `Divide both sides by ${a}: x = ${b} ÷ ${a}`;
+                
+            } else if (level <= 18) {
+                // 9TH GRADE (Algebra I): Two-step equations
+                const x_val = Math.floor(Math.random() * 10) + 1;
+                const a = Math.floor(Math.random() * 5) + 2;
+                const b = Math.floor(Math.random() * 10) + 1;
+                const c = a * x_val + b;
+                question = `${a}x + ${b} = ${c}, x = ?`;
+                answer = x_val;
+                explanation = `Subtract ${b}: ${a}x = ${c - b}. Divide by ${a}: x = ${(c-b)/a}`;
+                
+            } else if (level <= 20) {
+                // 10TH GRADE (Geometry): Area problems
+                const shapes = ['square', 'rectangle'];
+                const shape = shapes[Math.floor(Math.random() * shapes.length)];
+                if (shape === 'square') {
+                    const side = Math.floor(Math.random() * 10) + 2;
+                    question = `Area of square, side=${side}?`;
+                    answer = side * side;
+                    explanation = `Area = side × side = ${side} × ${side}`;
+                } else {
+                    const l = Math.floor(Math.random() * 10) + 2;
+                    const w = Math.floor(Math.random() * 8) + 2;
+                    question = `Area: ${l} × ${w} = ?`;
+                    answer = l * w;
+                    explanation = `Area = length × width = ${l} × ${w}`;
+                }
+                
+            } else if (level <= 22) {
+                // 11TH GRADE (Algebra II): Exponents
+                const base = Math.floor(Math.random() * 5) + 2;
+                const exp = Math.floor(Math.random() * 3) + 2;
+                question = `${base}^${exp} = ?`;
+                answer = Math.pow(base, exp);
+                explanation = `${base}^${exp} = ${'×'.repeat(exp-1).split('').map(() => base).join(' × ')} (${base} multiplied ${exp} times)`;
+                
+            } else if (level <= 24) {
+                // 12TH GRADE (Pre-Calc): Factoring
+                const a = Math.floor(Math.random() * 5) + 1;
+                const b = Math.floor(Math.random() * 5) + 1;
+                // (x + a)(x + b) = x² + (a+b)x + ab
+                const sum = a + b;
+                const product = a * b;
+                question = `x² + ${sum}x + ${product} = (x+?)(x+${b})`;
+                answer = a;
+                explanation = `Find two numbers that add to ${sum} and multiply to ${product}. Those are ${a} and ${b}`;
+                
+            } else {
+                // CALCULUS: Derivatives of linear/polynomial functions
+                const calcTypes = ['derivative', 'integral'];
+                const calcType = calcTypes[Math.floor(Math.random() * calcTypes.length)];
+                
+                if (calcType === 'derivative') {
+                    const coef = Math.floor(Math.random() * 8) + 2;
+                    const exp = Math.floor(Math.random() * 3) + 2;
+                    question = `d/dx(${coef}x^${exp}) = ?x^${exp-1}`;
+                    answer = coef * exp;
+                    explanation = `Power rule: bring down exponent, multiply by coefficient. ${exp} × ${coef} = ${coef * exp}`;
+                } else {
+                    // Simple integral
+                    const coef = Math.floor(Math.random() * 6) + 2;
+                    question = `∫${coef}dx = ${coef}x + ?`;
+                    answer = 0; // The constant C, we'll accept 0
+                    explanation = `Integral of constant: ${coef}x + C. Enter 0 for the constant.`;
+                }
+            }
+            
+            return { question, answer: Math.round(answer), explanation };
+        }
 
         // Submit math answer
         function submitAnswer(caughtPrey) {
+            // Prevent double submission
+            if (mathSubmitted) return;
+            mathSubmitted = true;
+            
             clearInterval(mathInterval);
+            mathInterval = null;
+            
             const userAnswer = parseInt(document.getElementById('mathInput').value);
             
             if (userAnswer === currentAnswer) {
@@ -986,28 +1138,20 @@
                     gameState = 'playing';
                 }
             } else {
-                // Wrong - respawn the prey at a new location and start dog chase
+                // Wrong - respawn the prey in the CENTER AREA and start dog chase
                 if (caughtPrey) {
                     caughtPrey.caught = false;
-                    // Move prey to a random valid position away from cat
-                    const validPositions = [];
-                    for (let y = 0; y < ROWS; y++) {
-                        for (let x = 0; x < COLS; x++) {
-                            if (maze[y] && maze[y][x] !== WALL) {
-                                const distToCat = Math.abs(cat.x - x) + Math.abs(cat.y - y);
-                                if (distToCat > 5) {
-                                    validPositions.push({x, y});
-                                }
-                            }
-                        }
-                    }
-                    if (validPositions.length > 0) {
-                        const newPos = validPositions[Math.floor(Math.random() * validPositions.length)];
-                        caughtPrey.x = newPos.x;
-                        caughtPrey.y = newPos.y;
-                        caughtPrey.targetX = newPos.x;
-                        caughtPrey.targetY = newPos.y;
-                    }
+                    // Respawn in center open area (the "ghost house" area)
+                    const centerPositions = [
+                        {x: 9, y: 10}, {x: 10, y: 10},
+                        {x: 8, y: 10}, {x: 11, y: 10},
+                        {x: 9, y: 11}, {x: 10, y: 11}
+                    ];
+                    const newPos = centerPositions[Math.floor(Math.random() * centerPositions.length)];
+                    caughtPrey.x = newPos.x;
+                    caughtPrey.y = newPos.y;
+                    caughtPrey.targetX = newPos.x;
+                    caughtPrey.targetY = newPos.y;
                 }
                 document.getElementById('mathModal').classList.add('wrong');
                 setTimeout(() => {
@@ -1019,6 +1163,12 @@
 
         // Start dog chase
         function startDogChase() {
+            // Clear any existing dog chase first
+            if (dogChaseInterval) {
+                clearInterval(dogChaseInterval);
+                dogChaseInterval = null;
+            }
+            
             gameState = 'dogChase';
             dog.active = true;
             dog.x = 10;
@@ -1042,7 +1192,10 @@
 
         // End dog chase
         function endDogChase() {
-            clearInterval(dogChaseInterval);
+            if (dogChaseInterval) {
+                clearInterval(dogChaseInterval);
+                dogChaseInterval = null;
+            }
             dog.active = false;
             document.getElementById('dogWarning').classList.remove('active');
             gameState = 'playing';
@@ -1050,7 +1203,10 @@
 
         // Lose a life
         function loseLife() {
-            clearInterval(dogChaseInterval);
+            if (dogChaseInterval) {
+                clearInterval(dogChaseInterval);
+                dogChaseInterval = null;
+            }
             dog.active = false;
             document.getElementById('dogWarning').classList.remove('active');
             lives--;
@@ -1093,6 +1249,10 @@
             document.getElementById('level').textContent = level;
             document.getElementById('preyCount').textContent = `${preyCaught}/${totalPrey}`;
             
+            // Update grade level display
+            const gradeLevel = getGradeLevel(level);
+            document.getElementById('gradeLevel').textContent = gradeLevel;
+            
             // Update lives
             const livesEl = document.getElementById('lives');
             livesEl.innerHTML = '';
@@ -1102,6 +1262,23 @@
                 span.textContent = '🐱';
                 livesEl.appendChild(span);
             }
+        }
+        
+        // Get grade level name based on game level
+        function getGradeLevel(level) {
+            if (level <= 2) return '1st';
+            if (level <= 4) return '2nd';
+            if (level <= 6) return '3rd';
+            if (level <= 8) return '4th';
+            if (level <= 10) return '5th';
+            if (level <= 12) return '6th';
+            if (level <= 14) return '7th';
+            if (level <= 16) return '8th';
+            if (level <= 18) return 'Alg I';
+            if (level <= 20) return 'Geom';
+            if (level <= 22) return 'Alg II';
+            if (level <= 24) return 'PreCa';
+            return 'Calc';
         }
 
         // Update boost UI

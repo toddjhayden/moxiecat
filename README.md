@@ -48,10 +48,25 @@ Navigate your cat through the maze to catch mice, birds, fish, and other prey. E
 Points are multiplied by your current level!
 
 ### Math Difficulty
-- **Levels 1-2**: Addition (single digits)
-- **Levels 3-4**: Addition & Subtraction
-- **Levels 5-6**: Multiplication
-- **Level 7+**: Mixed operations with larger numbers
+Math problems progress through grade levels as you advance:
+
+| Levels | Grade | Topics |
+|--------|-------|--------|
+| 1-2 | 1st Grade | Simple addition (1-10) |
+| 3-4 | 2nd Grade | Addition & subtraction (1-20) |
+| 5-6 | 3rd Grade | Multiplication basics |
+| 7-8 | 4th Grade | Division basics |
+| 9-10 | 5th Grade | Order of operations |
+| 11-12 | 6th Grade | Percentages |
+| 13-14 | 7th Grade | Negative numbers |
+| 15-16 | 8th Grade | Basic algebra (solve for x) |
+| 17-18 | Algebra I | Two-step equations |
+| 19-20 | Geometry | Area calculations |
+| 21-22 | Algebra II | Exponents |
+| 23-24 | Pre-Calculus | Factoring |
+| 25+ | Calculus | Derivatives & integrals |
+
+**💡 Hints:** For 3rd grade and above, helpful explanations appear to guide you!
 
 ## 🚀 Getting Started
 
