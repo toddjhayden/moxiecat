@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cat Hunt - Math Arcade</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --neon-pink: #ff2d95;
+            --neon-cyan: #00f5ff;
+            --neon-yellow: #ffff00;
+            --neon-green: #39ff14;
+            --dark-purple: #1a0a2e;
+            --arcade-blue: #0f0f3d;
+            --grid-color: rgba(0, 245, 255, 0.1);
+        }
+
+        body {
+            background: var(--dark-purple);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Press Start 2P', cursive;
+            overflow: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                linear-gradient(var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 40px 40px;
+            animation: gridMove 20s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% { transform: perspective(500px) rotateX(60deg) translateY(0); }
+            100% { transform: perspective(500px) rotateX(60deg) translateY(40px); }
+        }
+
+        .game-cabinet {
+            position: relative;
+            z-index: 1;
+            background: linear-gradient(135deg, #2a1a4a 0%, #0f0a1f 100%);
+            border: 4px solid var(--neon-cyan);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 
+                0 0 30px rgba(0, 245, 255, 0.5),
+                inset 0 0 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .game-title {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .game-title h1 {
+            font-size: 28px;
+            background: linear-gradient(180deg, var(--neon-yellow) 0%, var(--neon-pink) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: none;
+            filter: drop-shadow(0 0 10px var(--neon-pink));
+            animation: titleGlow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes titleGlow {
+            from { filter: drop-shadow(0 0 10px var(--neon-pink)); }
+            to { filter: drop-shadow(0 0 20px var(--neon-yellow)); }
+        }
+
+        .score-panel {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 10px 15px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            border: 2px solid var(--neon-pink);
+        }
+
+        .score-item {
+            text-align: center;
+        }
+
+        .score-label {
+            font-size: 8px;
+            color: var(--neon-cyan);
+            margin-bottom: 5px;
+        }
+
+        .score-value {
+            font-size: 14px;
+            color: var(--neon-yellow);
+            text-shadow: 0 0 10px var(--neon-yellow);
+        }
+
+        .game-container {
+            position: relative;
+            background: #000;
+            border: 3px solid var(--neon-pink);
+            border-radius: 5px;
+            box-shadow: 
+                inset 0 0 50px rgba(255, 45, 149, 0.2),
+                0 0 20px rgba(255, 45, 149, 0.5);
+        }
+
+        #gameCanvas {
+            display: block;
+        }
+
+        .controls-info {
+            margin-top: 15px;
+            text-align: center;
+            font-family: 'VT323', monospace;
+            font-size: 16px;
+            color: var(--neon-cyan);
+        }
+
+        .controls-info span {
+            color: var(--neon-yellow);
+        }
+
+        /* Math Problem Modal */
+        .math-modal {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #1a0a2e 0%, #2a1a4a 100%);
+            border: 4px solid var(--neon-green);
+            border-radius: 15px;
+            padding: 30px;
+            z-index: 100;
+            text-align: center;
+            box-shadow: 
+                0 0 50px rgba(57, 255, 20, 0.5),
+                inset 0 0 30px rgba(0, 0, 0, 0.5);
+            animation: modalPop 0.3s ease-out;
+        }
+
+        @keyframes modalPop {
+            from { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+
+        .math-modal.active {
+            display: block;
+        }
+
+        .math-modal.wrong {
+            border-color: #ff0000;
+            box-shadow: 0 0 50px rgba(255, 0, 0, 0.5);
+        }
+
+        .math-question {
+            font-size: 24px;
+            color: var(--neon-yellow);
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px var(--neon-yellow);
+        }
+
+        .math-input {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 20px;
+            padding: 10px 20px;
+            width: 150px;
+            text-align: center;
+            background: #000;
+            border: 3px solid var(--neon-cyan);
+            color: var(--neon-cyan);
+            border-radius: 5px;
+            outline: none;
+        }
+
+        .math-input:focus {
+            box-shadow: 0 0 20px var(--neon-cyan);
+        }
+
+        .math-submit {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 12px;
+            padding: 10px 25px;
+            margin-left: 10px;
+            background: var(--neon-green);
+            border: none;
+            color: #000;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .math-submit:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 20px var(--neon-green);
+        }
+
+        .math-timer {
+            margin-top: 15px;
+            font-size: 12px;
+            color: var(--neon-pink);
+        }
+
+        /* Dog Chase Warning */
+        .dog-warning {
+            display: none;
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 0, 0, 0.9);
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 10px;
+            color: white;
+            animation: warningFlash 0.5s ease-in-out infinite;
+            z-index: 50;
+        }
+
+        .dog-warning.active {
+            display: block;
+        }
+
+        @keyframes warningFlash {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Start Screen */
+        .start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+        }
+
+        .start-screen.hidden {
+            display: none;
+        }
+
+        .start-title {
+            font-size: 20px;
+            color: var(--neon-yellow);
+            margin-bottom: 30px;
+            text-shadow: 0 0 20px var(--neon-yellow);
+            animation: titlePulse 1s ease-in-out infinite;
+        }
+
+        @keyframes titlePulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .start-instructions {
+            font-family: 'VT323', monospace;
+            font-size: 18px;
+            color: var(--neon-cyan);
+            text-align: center;
+            line-height: 2;
+            margin-bottom: 30px;
+        }
+
+        .start-button {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 14px;
+            padding: 15px 40px;
+            background: transparent;
+            border: 3px solid var(--neon-green);
+            color: var(--neon-green);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .start-button:hover {
+            background: var(--neon-green);
+            color: #000;
+            box-shadow: 0 0 30px var(--neon-green);
+        }
+
+        /* Game Over Screen */
+        .game-over {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.95);
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+        }
+
+        .game-over.active {
+            display: flex;
+        }
+
+        .game-over-title {
+            font-size: 24px;
+            color: #ff0000;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px #ff0000;
+        }
+
+        .final-score {
+            font-size: 16px;
+            color: var(--neon-yellow);
+            margin-bottom: 30px;
+        }
+
+        /* Level Complete */
+        .level-complete {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 40px;
+            border: 4px solid var(--neon-green);
+            border-radius: 15px;
+            text-align: center;
+            z-index: 200;
+        }
+
+        .level-complete.active {
+            display: block;
+        }
+
+        .level-complete h2 {
+            color: var(--neon-green);
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        /* Lives display */
+        .lives-display {
+            display: flex;
+            gap: 5px;
+        }
+
+        .life-icon {
+            width: 20px;
+            height: 20px;
+            font-size: 16px;
+        }
+
+        .boost-display {
+            display: flex;
+            gap: 5px;
+        }
+
+        .boost-icon {
+            font-size: 16px;
+            text-shadow: 0 0 10px var(--neon-yellow);
+        }
+
+        .boost-icon.empty {
+            opacity: 0.3;
+            text-shadow: none;
+        }
+
+        .boost-active {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 0, 0.9);
+            padding: 8px 20px;
+            border-radius: 10px;
+            font-size: 10px;
+            color: #000;
+            animation: boostFlash 0.3s ease-in-out infinite;
+            z-index: 50;
+            display: none;
+        }
+
+        .boost-active.active {
+            display: block;
+        }
+
+        @keyframes boostFlash {
+            0%, 100% { transform: translateX(-50%) scale(1); }
+            50% { transform: translateX(-50%) scale(1.1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-cabinet">
+        <div class="game-title">
+            <h1>🐱 CAT HUNT 🐱</h1>
+        </div>
+        
+        <div class="score-panel">
+            <div class="score-item">
+                <div class="score-label">SCORE</div>
+                <div class="score-value" id="score">0</div>
+            </div>
+            <div class="score-item">
+                <div class="score-label">LEVEL</div>
+                <div class="score-value" id="level">1</div>
+            </div>
+            <div class="score-item">
+                <div class="score-label">PREY</div>
+                <div class="score-value" id="preyCount">0</div>
+            </div>
+            <div class="score-item">
+                <div class="score-label">LIVES</div>
+                <div class="lives-display" id="lives">
+                    <span class="life-icon">🐱</span>
+                    <span class="life-icon">🐱</span>
+                    <span class="life-icon">🐱</span>
+                </div>
+            </div>
+            <div class="score-item">
+                <div class="score-label">BOOSTS</div>
+                <div class="boost-display" id="boosts">
+                    <span class="boost-icon">⚡</span>
+                    <span class="boost-icon empty">⚡</span>
+                    <span class="boost-icon empty">⚡</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="game-container">
+            <canvas id="gameCanvas" width="560" height="620"></canvas>
+            
+            <div class="start-screen" id="startScreen">
+                <div class="start-title">🐱 CAT HUNT 🐱</div>
+                <div class="start-instructions">
+                    Catch mice 🐭, birds 🐦, and fish 🐟!<br>
+                    Solve math problems to score points!<br>
+                    Wrong answer = Avoid the DOG! 🐕<br>
+                    Collect ⚡ boosts (max 3 per level)<br><br>
+                    Use ARROW KEYS or WASD to move<br>
+                    Press SPACE for speed boost!
+                </div>
+                <button class="start-button" id="startButton">START GAME</button>
+            </div>
+            
+            <div class="math-modal" id="mathModal">
+                <div class="math-question" id="mathQuestion">5 + 3 = ?</div>
+                <input type="number" class="math-input" id="mathInput" autofocus>
+                <button class="math-submit" id="mathSubmit">OK</button>
+                <div class="math-timer">Time: <span id="mathTimer">10</span>s</div>
+            </div>
+            
+            <div class="dog-warning" id="dogWarning">
+                🐕 DOG CHASE! SURVIVE FOR <span id="dogTimer">10</span>s! 🐕
+            </div>
+
+            <div class="boost-active" id="boostActive">
+                ⚡ SPEED BOOST! ⚡
+            </div>
+            
+            <div class="game-over" id="gameOver">
+                <div class="game-over-title">GAME OVER</div>
+                <div class="final-score">Final Score: <span id="finalScore">0</span></div>
+                <button class="start-button" id="restartButton">PLAY AGAIN</button>
+            </div>
+            
+            <div class="level-complete" id="levelComplete">
+                <h2>LEVEL COMPLETE!</h2>
+                <p style="color: var(--neon-cyan); font-family: 'VT323', monospace; font-size: 18px;">
+                    Get ready for Level <span id="nextLevel">2</span>!
+                </p>
+            </div>
+        </div>
+        
+        <div class="controls-info">
+            <span>ARROWS</span> or <span>WASD</span> to move | <span>SPACE</span> for speed boost | Catch all prey to advance!
+        </div>
+    </div>
+
+    <script>
+        // Game Constants
+        const TILE_SIZE = 28;
+        const COLS = 20;
+        const ROWS = 22;
+        const CANVAS_WIDTH = COLS * TILE_SIZE;
+        const CANVAS_HEIGHT = ROWS * TILE_SIZE;
+
+        // Tile Types
+        const EMPTY = 0;
+        const WALL = 1;
+        const DOT = 2;
+        const POWER = 3;
+        const BOOST = 4;
+
+        // Game State
+        let gameState = 'start'; // start, playing, math, dogChase, gameOver, levelComplete
+        let score = 0;
+        let level = 1;
+        let lives = 3;
+        let preyCaught = 0;
+        let totalPrey = 0;
+
+        // Boost State
+        let boostCount = 0;
+        const MAX_BOOSTS = 3;
+        let boostActive = false;
+        let boostTimer = null;
+        const BOOST_DURATION = 2000; // 2 seconds of boost
+        const NORMAL_SPEED = 0.15;
+        const BOOST_SPEED = 0.3;
+
+        // Math Problem State
+        let currentAnswer = 0;
+        let mathTimer = 10;
+        let mathInterval = null;
+
+        // Dog Chase State
+        let dogChaseTimer = 10;
+        let dogChaseInterval = null;
+
+        // Canvas Setup
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = CANVAS_WIDTH;
+        canvas.height = CANVAS_HEIGHT;
+
+        // Maze Layout (1 = wall, 0 = path, 2 = dot, 3 = power pellet)
+        const baseMaze = [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,2,2,2,2,2,2,2,2,1,1,2,2,2,2,2,2,2,2,1],
+            [1,2,1,1,2,1,1,1,2,1,1,2,1,1,1,2,1,1,2,1],
+            [1,3,1,1,2,1,1,1,2,1,1,2,1,1,1,2,1,1,3,1],
+            [1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1],
+            [1,2,1,1,2,1,2,1,1,1,1,1,1,2,1,2,1,1,2,1],
+            [1,2,2,2,2,1,2,2,2,1,1,2,2,2,1,2,2,2,2,1],
+            [1,1,1,1,2,1,1,1,0,1,1,0,1,1,1,2,1,1,1,1],
+            [0,0,0,1,2,1,0,0,0,0,0,0,0,0,1,2,1,0,0,0],
+            [1,1,1,1,2,1,0,1,1,0,0,1,1,0,1,2,1,1,1,1],
+            [0,0,0,0,2,0,0,1,0,0,0,0,1,0,0,2,0,0,0,0],
+            [1,1,1,1,2,1,0,1,1,1,1,1,1,0,1,2,1,1,1,1],
+            [0,0,0,1,2,1,0,0,0,0,0,0,0,0,1,2,1,0,0,0],
+            [1,1,1,1,2,1,0,1,1,1,1,1,1,0,1,2,1,1,1,1],
+            [1,2,2,2,2,2,2,2,2,1,1,2,2,2,2,2,2,2,2,1],
+            [1,2,1,1,2,1,1,1,2,1,1,2,1,1,1,2,1,1,2,1],
+            [1,3,2,1,2,2,2,2,2,2,2,2,2,2,2,2,1,2,3,1],
+            [1,1,2,1,2,1,2,1,1,1,1,1,1,2,1,2,1,2,1,1],
+            [1,2,2,2,2,1,2,2,2,1,1,2,2,2,1,2,2,2,2,1],
+            [1,2,1,1,1,1,1,1,2,1,1,2,1,1,1,1,1,1,2,1],
+            [1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ];
+
+        let maze = [];
+
+        // Copy maze for each level
+        function resetMaze() {
+            maze = baseMaze.map(row => [...row]);
+            
+            // Add boost pickups (max 3 per level at random walkable positions)
+            const boostPositions = [
+                { x: 5, y: 4 },
+                { x: 14, y: 4 },
+                { x: 9, y: 14 },
+                { x: 5, y: 19 },
+                { x: 14, y: 19 }
+            ];
+            
+            // Shuffle and pick 3 positions
+            const shuffled = boostPositions.sort(() => Math.random() - 0.5);
+            for (let i = 0; i < MAX_BOOSTS; i++) {
+                const pos = shuffled[i];
+                if (maze[pos.y][pos.x] !== WALL) {
+                    maze[pos.y][pos.x] = BOOST;
+                }
+            }
+            
+            // Reset boost count for new level
+            boostCount = 0;
+            updateBoostUI();
+        }
+
+        // Cat (Player)
+        const cat = {
+            x: 10,
+            y: 16,
+            targetX: 10,
+            targetY: 16,
+            direction: 'right',
+            nextDirection: 'right',
+            speed: 0.15, // Will be set to NORMAL_SPEED after constants are defined
+            animFrame: 0,
+            animTimer: 0
+        };
+
+        // Prey Types
+        const preyTypes = [
+            { emoji: '🐭', name: 'mouse', points: 10, speed: 0.08 },
+            { emoji: '🐦', name: 'bird', points: 15, speed: 0.1 },
+            { emoji: '🐟', name: 'fish', points: 20, speed: 0.06 },
+            { emoji: '🦎', name: 'lizard', points: 25, speed: 0.09 },
+            { emoji: '🐛', name: 'bug', points: 5, speed: 0.12 }
+        ];
+
+        // Prey array
+        let prey = [];
+
+        // Dog (appears on wrong answer)
+        const dog = {
+            x: 10,
+            y: 10,
+            targetX: 10,
+            targetY: 10,
+            speed: 0.12,
+            active: false,
+            animFrame: 0
+        };
+
+        // Initialize prey for level
+        function initPrey() {
+            prey = [];
+            const positions = [
+                { x: 1, y: 1 },
+                { x: 18, y: 1 },
+                { x: 1, y: 20 },
+                { x: 18, y: 20 },
+                { x: 9, y: 10 },
+                { x: 10, y: 10 }
+            ];
+            
+            const numPrey = Math.min(3 + level, positions.length);
+            for (let i = 0; i < numPrey; i++) {
+                const type = preyTypes[Math.floor(Math.random() * preyTypes.length)];
+                prey.push({
+                    ...type,
+                    x: positions[i].x,
+                    y: positions[i].y,
+                    targetX: positions[i].x,
+                    targetY: positions[i].y,
+                    direction: ['up', 'down', 'left', 'right'][Math.floor(Math.random() * 4)],
+                    caught: false,
+                    speed: type.speed + (level * 0.01)
+                });
+            }
+            totalPrey = numPrey;
+            preyCaught = 0;
+            updateUI();
+        }
+
+        // Reset cat position
+        function resetCat() {
+            cat.x = 10;
+            cat.y = 16;
+            cat.targetX = 10;
+            cat.targetY = 16;
+            cat.direction = 'right';
+            cat.nextDirection = 'right';
+            cat.speed = NORMAL_SPEED;
+            
+            // Clear any active boost
+            boostActive = false;
+            if (boostTimer) clearTimeout(boostTimer);
+            document.getElementById('boostActive').classList.remove('active');
+        }
+
+        // Check if tile is walkable
+        function isWalkable(x, y) {
+            if (x < 0 || x >= COLS || y < 0 || y >= ROWS) return false;
+            return maze[y][x] !== WALL;
+        }
+
+        // Get next position based on direction
+        function getNextPos(x, y, dir) {
+            switch (dir) {
+                case 'up': return { x, y: y - 1 };
+                case 'down': return { x, y: y + 1 };
+                case 'left': return { x: x - 1, y };
+                case 'right': return { x: x + 1, y };
+            }
+            return { x, y };
+        }
+
+        // Wrap position for tunnel
+        function wrapPosition(x, y) {
+            if (x < 0) x = COLS - 1;
+            if (x >= COLS) x = 0;
+            return { x, y };
+        }
+
+        // Update entity position
+        function updateEntity(entity) {
+            const dx = entity.targetX - entity.x;
+            const dy = entity.targetY - entity.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            if (dist < 0.05) {
+                entity.x = entity.targetX;
+                entity.y = entity.targetY;
+                return true;
+            }
+            
+            entity.x += (dx / dist) * entity.speed;
+            entity.y += (dy / dist) * entity.speed;
+            return false;
+        }
+
+        // Move cat
+        function updateCat() {
+            if (gameState !== 'playing' && gameState !== 'dogChase') return;
+            
+            // Update animation
+            cat.animTimer += 0.1;
+            if (cat.animTimer >= 1) {
+                cat.animTimer = 0;
+                cat.animFrame = (cat.animFrame + 1) % 2;
+            }
+            
+            // Check if reached target
+            if (updateEntity(cat)) {
+                // Wrap position if in tunnel
+                const wrapped = wrapPosition(cat.x, cat.y);
+                cat.x = wrapped.x;
+                cat.targetX = wrapped.x;
+                
+                // Try to change direction
+                const nextPos = getNextPos(cat.x, cat.y, cat.nextDirection);
+                const wrappedNext = wrapPosition(nextPos.x, nextPos.y);
+                if (isWalkable(wrappedNext.x, wrappedNext.y)) {
+                    cat.direction = cat.nextDirection;
+                }
+                
+                // Move in current direction
+                const movePos = getNextPos(cat.x, cat.y, cat.direction);
+                const wrappedMove = wrapPosition(movePos.x, movePos.y);
+                if (isWalkable(wrappedMove.x, wrappedMove.y)) {
+                    cat.targetX = wrappedMove.x;
+                    cat.targetY = wrappedMove.y;
+                }
+                
+                // Collect dots
+                const tileX = Math.round(cat.x);
+                const tileY = Math.round(cat.y);
+                if (maze[tileY] && maze[tileY][tileX] === DOT) {
+                    maze[tileY][tileX] = EMPTY;
+                    score += 1;
+                    updateUI();
+                } else if (maze[tileY] && maze[tileY][tileX] === POWER) {
+                    maze[tileY][tileX] = EMPTY;
+                    score += 5;
+                    updateUI();
+                } else if (maze[tileY] && maze[tileY][tileX] === BOOST) {
+                    maze[tileY][tileX] = EMPTY;
+                    if (boostCount < MAX_BOOSTS) {
+                        boostCount++;
+                        updateBoostUI();
+                    }
+                }
+            }
+        }
+
+        // Update prey AI
+        function updatePrey() {
+            if (gameState !== 'playing' && gameState !== 'dogChase') return;
+            
+            prey.forEach(p => {
+                if (p.caught) return;
+                
+                if (updateEntity(p)) {
+                    // Random direction change
+                    if (Math.random() < 0.3) {
+                        const dirs = ['up', 'down', 'left', 'right'];
+                        p.direction = dirs[Math.floor(Math.random() * 4)];
+                    }
+                    
+                    // Run away from cat if close
+                    const distToCat = Math.abs(cat.x - p.x) + Math.abs(cat.y - p.y);
+                    if (distToCat < 5) {
+                        // Move away from cat
+                        if (cat.x < p.x && isWalkable(p.x + 1, p.y)) p.direction = 'right';
+                        else if (cat.x > p.x && isWalkable(p.x - 1, p.y)) p.direction = 'left';
+                        else if (cat.y < p.y && isWalkable(p.x, p.y + 1)) p.direction = 'down';
+                        else if (cat.y > p.y && isWalkable(p.x, p.y - 1)) p.direction = 'up';
+                    }
+                    
+                    // Try to move
+                    const nextPos = getNextPos(p.x, p.y, p.direction);
+                    if (isWalkable(nextPos.x, nextPos.y)) {
+                        p.targetX = nextPos.x;
+                        p.targetY = nextPos.y;
+                    } else {
+                        // Change direction
+                        const dirs = ['up', 'down', 'left', 'right'].filter(d => {
+                            const np = getNextPos(p.x, p.y, d);
+                            return isWalkable(np.x, np.y);
+                        });
+                        if (dirs.length > 0) {
+                            p.direction = dirs[Math.floor(Math.random() * dirs.length)];
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update dog AI (chases cat)
+        function updateDog() {
+            if (!dog.active || gameState !== 'dogChase') return;
+            
+            dog.animFrame = (dog.animFrame + 0.1) % 2;
+            
+            if (updateEntity(dog)) {
+                // Chase cat
+                const dx = cat.x - dog.x;
+                const dy = cat.y - dog.y;
+                
+                let dir = 'right';
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    dir = dx > 0 ? 'right' : 'left';
+                } else {
+                    dir = dy > 0 ? 'down' : 'up';
+                }
+                
+                const nextPos = getNextPos(dog.x, dog.y, dir);
+                if (isWalkable(nextPos.x, nextPos.y)) {
+                    dog.targetX = nextPos.x;
+                    dog.targetY = nextPos.y;
+                } else {
+                    // Try other directions
+                    const dirs = ['up', 'down', 'left', 'right'].filter(d => {
+                        const np = getNextPos(dog.x, dog.y, d);
+                        return isWalkable(np.x, np.y);
+                    });
+                    if (dirs.length > 0) {
+                        // Pick direction closest to cat
+                        let bestDir = dirs[0];
+                        let bestDist = Infinity;
+                        dirs.forEach(d => {
+                            const np = getNextPos(dog.x, dog.y, d);
+                            const dist = Math.abs(cat.x - np.x) + Math.abs(cat.y - np.y);
+                            if (dist < bestDist) {
+                                bestDist = dist;
+                                bestDir = d;
+                            }
+                        });
+                        const movePos = getNextPos(dog.x, dog.y, bestDir);
+                        dog.targetX = movePos.x;
+                        dog.targetY = movePos.y;
+                    }
+                }
+            }
+        }
+
+        // Check collisions
+        function checkCollisions() {
+            if (gameState === 'playing') {
+                // Check prey collisions
+                prey.forEach(p => {
+                    if (p.caught) return;
+                    const dist = Math.abs(cat.x - p.x) + Math.abs(cat.y - p.y);
+                    if (dist < 0.8) {
+                        p.caught = true;
+                        showMathProblem(p);
+                    }
+                });
+            } else if (gameState === 'dogChase' && dog.active) {
+                // Check dog collision
+                const dist = Math.abs(cat.x - dog.x) + Math.abs(cat.y - dog.y);
+                if (dist < 0.8) {
+                    loseLife();
+                }
+            }
+        }
+
+        // Show math problem
+        function showMathProblem(caughtPrey) {
+            gameState = 'math';
+            
+            // Generate problem based on level
+            let num1, num2, operator, answer;
+            
+            if (level <= 2) {
+                // Addition
+                num1 = Math.floor(Math.random() * 10) + 1;
+                num2 = Math.floor(Math.random() * 10) + 1;
+                operator = '+';
+                answer = num1 + num2;
+            } else if (level <= 4) {
+                // Addition or subtraction
+                num1 = Math.floor(Math.random() * 20) + 10;
+                num2 = Math.floor(Math.random() * 10) + 1;
+                if (Math.random() < 0.5) {
+                    operator = '+';
+                    answer = num1 + num2;
+                } else {
+                    operator = '-';
+                    answer = num1 - num2;
+                }
+            } else if (level <= 6) {
+                // Multiplication
+                num1 = Math.floor(Math.random() * 10) + 1;
+                num2 = Math.floor(Math.random() * 10) + 1;
+                operator = '×';
+                answer = num1 * num2;
+            } else {
+                // Mixed operations
+                const ops = ['+', '-', '×'];
+                operator = ops[Math.floor(Math.random() * 3)];
+                if (operator === '×') {
+                    num1 = Math.floor(Math.random() * 12) + 1;
+                    num2 = Math.floor(Math.random() * 12) + 1;
+                    answer = num1 * num2;
+                } else {
+                    num1 = Math.floor(Math.random() * 50) + 10;
+                    num2 = Math.floor(Math.random() * 20) + 1;
+                    answer = operator === '+' ? num1 + num2 : num1 - num2;
+                }
+            }
+            
+            currentAnswer = answer;
+            document.getElementById('mathQuestion').textContent = `${num1} ${operator} ${num2} = ?`;
+            document.getElementById('mathInput').value = '';
+            document.getElementById('mathModal').classList.add('active');
+            document.getElementById('mathModal').classList.remove('wrong');
+            document.getElementById('mathInput').focus();
+            
+            // Start timer
+            mathTimer = 10;
+            document.getElementById('mathTimer').textContent = mathTimer;
+            mathInterval = setInterval(() => {
+                mathTimer--;
+                document.getElementById('mathTimer').textContent = mathTimer;
+                if (mathTimer <= 0) {
+                    submitAnswer(caughtPrey);
+                }
+            }, 1000);
+        }
+
+        // Submit math answer
+        function submitAnswer(caughtPrey) {
+            clearInterval(mathInterval);
+            const userAnswer = parseInt(document.getElementById('mathInput').value);
+            
+            if (userAnswer === currentAnswer) {
+                // Correct!
+                score += caughtPrey ? caughtPrey.points * level : 10;
+                preyCaught++;
+                document.getElementById('mathModal').classList.remove('active');
+                updateUI();
+                
+                // Check if all prey caught
+                if (preyCaught >= totalPrey) {
+                    levelComplete();
+                } else {
+                    gameState = 'playing';
+                }
+            } else {
+                // Wrong - start dog chase
+                document.getElementById('mathModal').classList.add('wrong');
+                setTimeout(() => {
+                    document.getElementById('mathModal').classList.remove('active');
+                    startDogChase();
+                }, 500);
+            }
+        }
+
+        // Start dog chase
+        function startDogChase() {
+            gameState = 'dogChase';
+            dog.active = true;
+            dog.x = 10;
+            dog.y = 10;
+            dog.targetX = 10;
+            dog.targetY = 10;
+            dog.speed = 0.1 + (level * 0.015);
+            
+            document.getElementById('dogWarning').classList.add('active');
+            dogChaseTimer = 10;
+            document.getElementById('dogTimer').textContent = dogChaseTimer;
+            
+            dogChaseInterval = setInterval(() => {
+                dogChaseTimer--;
+                document.getElementById('dogTimer').textContent = dogChaseTimer;
+                if (dogChaseTimer <= 0) {
+                    endDogChase();
+                }
+            }, 1000);
+        }
+
+        // End dog chase
+        function endDogChase() {
+            clearInterval(dogChaseInterval);
+            dog.active = false;
+            document.getElementById('dogWarning').classList.remove('active');
+            gameState = 'playing';
+        }
+
+        // Lose a life
+        function loseLife() {
+            clearInterval(dogChaseInterval);
+            dog.active = false;
+            document.getElementById('dogWarning').classList.remove('active');
+            lives--;
+            updateUI();
+            
+            if (lives <= 0) {
+                gameOver();
+            } else {
+                resetCat();
+                gameState = 'playing';
+            }
+        }
+
+        // Level complete
+        function levelComplete() {
+            gameState = 'levelComplete';
+            level++;
+            document.getElementById('nextLevel').textContent = level;
+            document.getElementById('levelComplete').classList.add('active');
+            
+            setTimeout(() => {
+                document.getElementById('levelComplete').classList.remove('active');
+                resetMaze();
+                initPrey();
+                resetCat();
+                gameState = 'playing';
+            }, 2000);
+        }
+
+        // Game over
+        function gameOver() {
+            gameState = 'gameOver';
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('gameOver').classList.add('active');
+        }
+
+        // Update UI
+        function updateUI() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('level').textContent = level;
+            document.getElementById('preyCount').textContent = `${preyCaught}/${totalPrey}`;
+            
+            // Update lives
+            const livesEl = document.getElementById('lives');
+            livesEl.innerHTML = '';
+            for (let i = 0; i < lives; i++) {
+                const span = document.createElement('span');
+                span.className = 'life-icon';
+                span.textContent = '🐱';
+                livesEl.appendChild(span);
+            }
+        }
+
+        // Update boost UI
+        function updateBoostUI() {
+            const boostsEl = document.getElementById('boosts');
+            boostsEl.innerHTML = '';
+            for (let i = 0; i < MAX_BOOSTS; i++) {
+                const span = document.createElement('span');
+                span.className = 'boost-icon' + (i >= boostCount ? ' empty' : '');
+                span.textContent = '⚡';
+                boostsEl.appendChild(span);
+            }
+        }
+
+        // Activate speed boost
+        function activateBoost() {
+            if (boostCount <= 0 || boostActive) return;
+            if (gameState !== 'playing' && gameState !== 'dogChase') return;
+            
+            boostCount--;
+            boostActive = true;
+            cat.speed = BOOST_SPEED;
+            updateBoostUI();
+            
+            document.getElementById('boostActive').classList.add('active');
+            
+            // Clear any existing boost timer
+            if (boostTimer) clearTimeout(boostTimer);
+            
+            boostTimer = setTimeout(() => {
+                boostActive = false;
+                cat.speed = NORMAL_SPEED;
+                document.getElementById('boostActive').classList.remove('active');
+            }, BOOST_DURATION);
+        }
+
+        // Draw functions
+        function draw() {
+            // Clear canvas
+            ctx.fillStyle = '#0a0a1a';
+            ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            
+            // Draw maze
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    const tile = maze[y][x];
+                    const px = x * TILE_SIZE;
+                    const py = y * TILE_SIZE;
+                    
+                    if (tile === WALL) {
+                        ctx.fillStyle = '#1a1a4a';
+                        ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+                        
+                        // Wall border glow
+                        ctx.strokeStyle = '#4a4aff';
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(px + 1, py + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+                    } else if (tile === DOT) {
+                        ctx.fillStyle = '#ffff00';
+                        ctx.beginPath();
+                        ctx.arc(px + TILE_SIZE / 2, py + TILE_SIZE / 2, 3, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else if (tile === POWER) {
+                        ctx.fillStyle = '#ff2d95';
+                        ctx.shadowColor = '#ff2d95';
+                        ctx.shadowBlur = 10;
+                        ctx.beginPath();
+                        ctx.arc(px + TILE_SIZE / 2, py + TILE_SIZE / 2, 6, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+                    } else if (tile === BOOST) {
+                        // Draw boost pickup with lightning bolt emoji
+                        ctx.font = '18px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.shadowColor = '#ffff00';
+                        ctx.shadowBlur = 15;
+                        ctx.fillText('⚡', px + TILE_SIZE / 2, py + TILE_SIZE / 2);
+                        ctx.shadowBlur = 0;
+                    }
+                }
+            }
+            
+            // Draw prey
+            prey.forEach(p => {
+                if (p.caught) return;
+                ctx.font = '20px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(p.emoji, p.x * TILE_SIZE + TILE_SIZE / 2, p.y * TILE_SIZE + TILE_SIZE / 2);
+            });
+            
+            // Draw cat
+            const catX = cat.x * TILE_SIZE + TILE_SIZE / 2;
+            const catY = cat.y * TILE_SIZE + TILE_SIZE / 2;
+            
+            ctx.save();
+            ctx.translate(catX, catY);
+            
+            // Rotate based on direction
+            let rotation = 0;
+            switch (cat.direction) {
+                case 'up': rotation = -Math.PI / 2; break;
+                case 'down': rotation = Math.PI / 2; break;
+                case 'left': rotation = Math.PI; break;
+            }
+            ctx.rotate(rotation);
+            
+            // Add boost glow effect
+            if (boostActive) {
+                ctx.shadowColor = '#ffff00';
+                ctx.shadowBlur = 20;
+            }
+            
+            // Draw cat body
+            const mouthOpen = cat.animFrame === 0 ? 0.2 : 0.5;
+            ctx.fillStyle = gameState === 'dogChase' ? '#ff6600' : (boostActive ? '#ffff00' : '#ffcc00');
+            ctx.beginPath();
+            ctx.arc(0, 0, 10, mouthOpen * Math.PI, (2 - mouthOpen) * Math.PI);
+            ctx.lineTo(0, 0);
+            ctx.fill();
+            
+            // Cat ears
+            ctx.fillStyle = gameState === 'dogChase' ? '#ff6600' : (boostActive ? '#ffff00' : '#ffcc00');
+            ctx.beginPath();
+            ctx.moveTo(-6, -8);
+            ctx.lineTo(-10, -14);
+            ctx.lineTo(-2, -10);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(6, -8);
+            ctx.lineTo(10, -14);
+            ctx.lineTo(2, -10);
+            ctx.fill();
+            
+            // Cat eye
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(-3, -3, 2, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.restore();
+            
+            // Draw dog if active
+            if (dog.active) {
+                ctx.font = '24px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const dogEmoji = Math.floor(dog.animFrame) === 0 ? '🐕' : '🐶';
+                ctx.fillText(dogEmoji, dog.x * TILE_SIZE + TILE_SIZE / 2, dog.y * TILE_SIZE + TILE_SIZE / 2);
+                
+                // Dog glow effect
+                ctx.shadowColor = '#ff0000';
+                ctx.shadowBlur = 20;
+                ctx.fillText(dogEmoji, dog.x * TILE_SIZE + TILE_SIZE / 2, dog.y * TILE_SIZE + TILE_SIZE / 2);
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        // Game loop
+        function gameLoop() {
+            updateCat();
+            updatePrey();
+            updateDog();
+            checkCollisions();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Input handling
+        document.addEventListener('keydown', (e) => {
+            if (gameState === 'math') {
+                if (e.key === 'Enter') {
+                    submitAnswer(prey.find(p => p.caught && !p.scored));
+                }
+                return;
+            }
+            
+            switch (e.key) {
+                case 'ArrowUp':
+                case 'w':
+                case 'W':
+                    cat.nextDirection = 'up';
+                    e.preventDefault();
+                    break;
+                case 'ArrowDown':
+                case 's':
+                case 'S':
+                    cat.nextDirection = 'down';
+                    e.preventDefault();
+                    break;
+                case 'ArrowLeft':
+                case 'a':
+                case 'A':
+                    cat.nextDirection = 'left';
+                    e.preventDefault();
+                    break;
+                case 'ArrowRight':
+                case 'd':
+                case 'D':
+                    cat.nextDirection = 'right';
+                    e.preventDefault();
+                    break;
+                case ' ':
+                    activateBoost();
+                    e.preventDefault();
+                    break;
+            }
+        });
+
+        // Button handlers
+        document.getElementById('startButton').addEventListener('click', () => {
+            document.getElementById('startScreen').classList.add('hidden');
+            resetMaze();
+            initPrey();
+            gameState = 'playing';
+        });
+
+        document.getElementById('restartButton').addEventListener('click', () => {
+            document.getElementById('gameOver').classList.remove('active');
+            score = 0;
+            level = 1;
+            lives = 3;
+            boostCount = 0;
+            boostActive = false;
+            if (boostTimer) clearTimeout(boostTimer);
+            document.getElementById('boostActive').classList.remove('active');
+            cat.speed = NORMAL_SPEED;
+            updateUI();
+            updateBoostUI();
+            resetMaze();
+            initPrey();
+            resetCat();
+            gameState = 'playing';
+        });
+
+        document.getElementById('mathSubmit').addEventListener('click', () => {
+            submitAnswer(prey.find(p => p.caught));
+        });
+
+        document.getElementById('mathInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                submitAnswer(prey.find(p => p.caught));
+            }
+        });
+
+        // Start game loop
+        gameLoop();
+    </script>
+</body>
+</html>
