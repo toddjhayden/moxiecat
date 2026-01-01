@@ -986,7 +986,29 @@
                     gameState = 'playing';
                 }
             } else {
-                // Wrong - start dog chase
+                // Wrong - respawn the prey at a new location and start dog chase
+                if (caughtPrey) {
+                    caughtPrey.caught = false;
+                    // Move prey to a random valid position away from cat
+                    const validPositions = [];
+                    for (let y = 0; y < ROWS; y++) {
+                        for (let x = 0; x < COLS; x++) {
+                            if (maze[y] && maze[y][x] !== WALL) {
+                                const distToCat = Math.abs(cat.x - x) + Math.abs(cat.y - y);
+                                if (distToCat > 5) {
+                                    validPositions.push({x, y});
+                                }
+                            }
+                        }
+                    }
+                    if (validPositions.length > 0) {
+                        const newPos = validPositions[Math.floor(Math.random() * validPositions.length)];
+                        caughtPrey.x = newPos.x;
+                        caughtPrey.y = newPos.y;
+                        caughtPrey.targetX = newPos.x;
+                        caughtPrey.targetY = newPos.y;
+                    }
+                }
                 document.getElementById('mathModal').classList.add('wrong');
                 setTimeout(() => {
                     document.getElementById('mathModal').classList.remove('active');
