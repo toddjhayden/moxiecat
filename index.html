@@ -735,29 +735,22 @@
                 cat.animFrame = (cat.animFrame + 1) % 2;
             }
             
-            // Check if reached target
-            if (updateEntity(cat)) {
+            // Calculate distance to target
+            const dx = cat.targetX - cat.x;
+            const dy = cat.targetY - cat.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            // If close enough to target, snap to it and pick new target
+            if (dist < 0.1) {
+                cat.x = cat.targetX;
+                cat.y = cat.targetY;
+                
                 // Wrap position if in tunnel
-                const wrapped = wrapPosition(cat.x, cat.y);
-                cat.x = wrapped.x;
-                cat.targetX = wrapped.x;
+                if (cat.x < 0) cat.x = COLS - 1;
+                if (cat.x >= COLS) cat.x = 0;
+                cat.targetX = cat.x;
                 
-                // Try to change direction
-                const nextPos = getNextPos(cat.x, cat.y, cat.nextDirection);
-                const wrappedNext = wrapPosition(nextPos.x, nextPos.y);
-                if (isWalkable(wrappedNext.x, wrappedNext.y)) {
-                    cat.direction = cat.nextDirection;
-                }
-                
-                // Move in current direction
-                const movePos = getNextPos(cat.x, cat.y, cat.direction);
-                const wrappedMove = wrapPosition(movePos.x, movePos.y);
-                if (isWalkable(wrappedMove.x, wrappedMove.y)) {
-                    cat.targetX = wrappedMove.x;
-                    cat.targetY = wrappedMove.y;
-                }
-                
-                // Collect dots
+                // Collect items at current position
                 const tileX = Math.round(cat.x);
                 const tileY = Math.round(cat.y);
                 if (maze[tileY] && maze[tileY][tileX] === DOT) {
@@ -775,6 +768,26 @@
                         updateBoostUI();
                     }
                 }
+                
+                // Try to change to next direction
+                const nextPos = getNextPos(cat.x, cat.y, cat.nextDirection);
+                if (isWalkable(nextPos.x, nextPos.y)) {
+                    cat.direction = cat.nextDirection;
+                    cat.targetX = nextPos.x;
+                    cat.targetY = nextPos.y;
+                } else {
+                    // Can't go in next direction, try current direction
+                    const movePos = getNextPos(cat.x, cat.y, cat.direction);
+                    if (isWalkable(movePos.x, movePos.y)) {
+                        cat.targetX = movePos.x;
+                        cat.targetY = movePos.y;
+                    }
+                    // If neither works, cat stops (stuck against wall)
+                }
+            } else {
+                // Move toward target
+                cat.x += (dx / dist) * cat.speed;
+                cat.y += (dy / dist) * cat.speed;
             }
         }
 
@@ -1250,35 +1263,53 @@
                 return;
             }
             
+            let newDir = null;
             switch (e.key) {
                 case 'ArrowUp':
                 case 'w':
                 case 'W':
-                    cat.nextDirection = 'up';
+                    newDir = 'up';
                     e.preventDefault();
                     break;
                 case 'ArrowDown':
                 case 's':
                 case 'S':
-                    cat.nextDirection = 'down';
+                    newDir = 'down';
                     e.preventDefault();
                     break;
                 case 'ArrowLeft':
                 case 'a':
                 case 'A':
-                    cat.nextDirection = 'left';
+                    newDir = 'left';
                     e.preventDefault();
                     break;
                 case 'ArrowRight':
                 case 'd':
                 case 'D':
-                    cat.nextDirection = 'right';
+                    newDir = 'right';
                     e.preventDefault();
                     break;
                 case ' ':
                     activateBoost();
                     e.preventDefault();
                     break;
+            }
+            
+            if (newDir && (gameState === 'playing' || gameState === 'dogChase')) {
+                cat.nextDirection = newDir;
+                // If cat is at a tile center, try to move immediately
+                const atCenter = Math.abs(cat.x - Math.round(cat.x)) < 0.1 && 
+                                 Math.abs(cat.y - Math.round(cat.y)) < 0.1;
+                if (atCenter) {
+                    const nextPos = getNextPos(Math.round(cat.x), Math.round(cat.y), newDir);
+                    if (isWalkable(nextPos.x, nextPos.y)) {
+                        cat.direction = newDir;
+                        cat.x = Math.round(cat.x);
+                        cat.y = Math.round(cat.y);
+                        cat.targetX = nextPos.x;
+                        cat.targetY = nextPos.y;
+                    }
+                }
             }
         });
 
@@ -1289,9 +1320,18 @@
             initPrey();
             resetCat();
             gameState = 'playing';
+            
+            // Trigger initial movement - cat should start moving right
+            const firstMove = getNextPos(cat.x, cat.y, cat.direction);
+            if (isWalkable(firstMove.x, firstMove.y)) {
+                cat.targetX = firstMove.x;
+                cat.targetY = firstMove.y;
+            }
+            
             // Ensure keyboard focus returns to the game
             document.getElementById('startButton').blur();
             document.body.focus();
+            console.log('Game started! Cat at:', cat.x, cat.y, 'Target:', cat.targetX, cat.targetY);
         });
 
         document.getElementById('restartButton').addEventListener('click', () => {
@@ -1310,6 +1350,14 @@
             initPrey();
             resetCat();
             gameState = 'playing';
+            
+            // Trigger initial movement
+            const firstMove = getNextPos(cat.x, cat.y, cat.direction);
+            if (isWalkable(firstMove.x, firstMove.y)) {
+                cat.targetX = firstMove.x;
+                cat.targetY = firstMove.y;
+            }
+            
             // Ensure keyboard focus returns to the game
             document.getElementById('restartButton').blur();
             document.body.focus();
