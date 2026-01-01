@@ -1109,8 +1109,12 @@
             ctx.fillStyle = '#0a0a1a';
             ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
             
+            // Safety check - make sure maze is initialized
+            if (!maze || maze.length === 0) return;
+            
             // Draw maze
             for (let y = 0; y < ROWS; y++) {
+                if (!maze[y]) continue;
                 for (let x = 0; x < COLS; x++) {
                     const tile = maze[y][x];
                     const px = x * TILE_SIZE;
@@ -1314,6 +1318,11 @@
             }
         });
 
+        // Initialize maze for display (will be reset when game starts)
+        resetMaze();
+        updateUI();
+        updateBoostUI();
+        
         // Start game loop
         gameLoop();
     </script>
