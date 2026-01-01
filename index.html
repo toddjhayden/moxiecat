@@ -659,25 +659,34 @@
         // Initialize prey for level
         function initPrey() {
             prey = [];
+            // All positions in open corridors, not enclosed areas
             const positions = [
                 { x: 1, y: 1 },
                 { x: 18, y: 1 },
                 { x: 1, y: 20 },
                 { x: 18, y: 20 },
-                { x: 9, y: 10 },
-                { x: 10, y: 10 }
+                { x: 9, y: 4 },
+                { x: 10, y: 16 },
+                { x: 1, y: 10 },
+                { x: 18, y: 10 }
             ];
             
             const numPrey = Math.min(3 + level, positions.length);
             for (let i = 0; i < numPrey; i++) {
                 const type = preyTypes[Math.floor(Math.random() * preyTypes.length)];
+                const pos = positions[i];
+                // Set initial target to trigger movement
+                const dirs = ['up', 'down', 'left', 'right'];
+                const startDir = dirs[Math.floor(Math.random() * 4)];
+                const startTarget = getNextPos(pos.x, pos.y, startDir);
+                
                 prey.push({
                     ...type,
-                    x: positions[i].x,
-                    y: positions[i].y,
-                    targetX: positions[i].x,
-                    targetY: positions[i].y,
-                    direction: ['up', 'down', 'left', 'right'][Math.floor(Math.random() * 4)],
+                    x: pos.x,
+                    y: pos.y,
+                    targetX: isWalkable(startTarget.x, startTarget.y) ? startTarget.x : pos.x,
+                    targetY: isWalkable(startTarget.x, startTarget.y) ? startTarget.y : pos.y,
+                    direction: startDir,
                     caught: false,
                     speed: type.speed + (level * 0.01)
                 });
@@ -705,8 +714,10 @@
 
         // Check if tile is walkable
         function isWalkable(x, y) {
+            x = Math.round(x);
+            y = Math.round(y);
             if (x < 0 || x >= COLS || y < 0 || y >= ROWS) return false;
-            return maze[y][x] !== WALL;
+            return maze[y] && maze[y][x] !== WALL;
         }
 
         // Get next position based on direction
@@ -818,38 +829,54 @@
             prey.forEach(p => {
                 if (p.caught) return;
                 
-                if (updateEntity(p)) {
-                    // Random direction change
-                    if (Math.random() < 0.3) {
-                        const dirs = ['up', 'down', 'left', 'right'];
-                        p.direction = dirs[Math.floor(Math.random() * 4)];
-                    }
+                // Calculate distance to target
+                const dx = p.targetX - p.x;
+                const dy = p.targetY - p.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                // If close to target, pick new direction
+                if (dist < 0.1) {
+                    p.x = p.targetX;
+                    p.y = p.targetY;
                     
-                    // Run away from cat if close
-                    const distToCat = Math.abs(cat.x - p.x) + Math.abs(cat.y - p.y);
-                    if (distToCat < 5) {
-                        // Move away from cat
-                        if (cat.x < p.x && isWalkable(p.x + 1, p.y)) p.direction = 'right';
-                        else if (cat.x > p.x && isWalkable(p.x - 1, p.y)) p.direction = 'left';
-                        else if (cat.y < p.y && isWalkable(p.x, p.y + 1)) p.direction = 'down';
-                        else if (cat.y > p.y && isWalkable(p.x, p.y - 1)) p.direction = 'up';
-                    }
+                    // Get all walkable directions
+                    const dirs = ['up', 'down', 'left', 'right'].filter(d => {
+                        const np = getNextPos(Math.round(p.x), Math.round(p.y), d);
+                        return isWalkable(np.x, np.y);
+                    });
                     
-                    // Try to move
-                    const nextPos = getNextPos(p.x, p.y, p.direction);
-                    if (isWalkable(nextPos.x, nextPos.y)) {
-                        p.targetX = nextPos.x;
-                        p.targetY = nextPos.y;
-                    } else {
-                        // Change direction
-                        const dirs = ['up', 'down', 'left', 'right'].filter(d => {
-                            const np = getNextPos(p.x, p.y, d);
-                            return isWalkable(np.x, np.y);
-                        });
-                        if (dirs.length > 0) {
+                    if (dirs.length > 0) {
+                        // Check if cat is close - if so, run away
+                        const distToCat = Math.abs(cat.x - p.x) + Math.abs(cat.y - p.y);
+                        
+                        if (distToCat < 6) {
+                            // Pick direction that gets FARTHEST from cat
+                            let bestDir = dirs[0];
+                            let bestDist = 0;
+                            dirs.forEach(d => {
+                                const np = getNextPos(Math.round(p.x), Math.round(p.y), d);
+                                const distFromCat = Math.abs(cat.x - np.x) + Math.abs(cat.y - np.y);
+                                if (distFromCat > bestDist) {
+                                    bestDist = distFromCat;
+                                    bestDir = d;
+                                }
+                            });
+                            p.direction = bestDir;
+                        } else {
+                            // Random movement when cat is far
                             p.direction = dirs[Math.floor(Math.random() * dirs.length)];
                         }
+                        
+                        const movePos = getNextPos(Math.round(p.x), Math.round(p.y), p.direction);
+                        if (isWalkable(movePos.x, movePos.y)) {
+                            p.targetX = movePos.x;
+                            p.targetY = movePos.y;
+                        }
                     }
+                } else {
+                    // Move toward target
+                    p.x += (dx / dist) * p.speed;
+                    p.y += (dy / dist) * p.speed;
                 }
             });
         }
@@ -860,45 +887,42 @@
             
             dog.animFrame = (dog.animFrame + 0.1) % 2;
             
-            if (updateEntity(dog)) {
-                // Chase cat
-                const dx = cat.x - dog.x;
-                const dy = cat.y - dog.y;
+            // Calculate distance to target
+            const dx = dog.targetX - dog.x;
+            const dy = dog.targetY - dog.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            // If close to target, pick new direction toward cat
+            if (dist < 0.15) {
+                dog.x = dog.targetX;
+                dog.y = dog.targetY;
                 
-                let dir = 'right';
-                if (Math.abs(dx) > Math.abs(dy)) {
-                    dir = dx > 0 ? 'right' : 'left';
-                } else {
-                    dir = dy > 0 ? 'down' : 'up';
-                }
+                // Get all walkable directions
+                const dirs = ['up', 'down', 'left', 'right'].filter(d => {
+                    const np = getNextPos(Math.round(dog.x), Math.round(dog.y), d);
+                    return isWalkable(np.x, np.y);
+                });
                 
-                const nextPos = getNextPos(dog.x, dog.y, dir);
-                if (isWalkable(nextPos.x, nextPos.y)) {
-                    dog.targetX = nextPos.x;
-                    dog.targetY = nextPos.y;
-                } else {
-                    // Try other directions
-                    const dirs = ['up', 'down', 'left', 'right'].filter(d => {
-                        const np = getNextPos(dog.x, dog.y, d);
-                        return isWalkable(np.x, np.y);
+                if (dirs.length > 0) {
+                    // Pick direction that gets closest to cat
+                    let bestDir = dirs[0];
+                    let bestDist = Infinity;
+                    dirs.forEach(d => {
+                        const np = getNextPos(Math.round(dog.x), Math.round(dog.y), d);
+                        const distToCat = Math.abs(cat.x - np.x) + Math.abs(cat.y - np.y);
+                        if (distToCat < bestDist) {
+                            bestDist = distToCat;
+                            bestDir = d;
+                        }
                     });
-                    if (dirs.length > 0) {
-                        // Pick direction closest to cat
-                        let bestDir = dirs[0];
-                        let bestDist = Infinity;
-                        dirs.forEach(d => {
-                            const np = getNextPos(dog.x, dog.y, d);
-                            const dist = Math.abs(cat.x - np.x) + Math.abs(cat.y - np.y);
-                            if (dist < bestDist) {
-                                bestDist = dist;
-                                bestDir = d;
-                            }
-                        });
-                        const movePos = getNextPos(dog.x, dog.y, bestDir);
-                        dog.targetX = movePos.x;
-                        dog.targetY = movePos.y;
-                    }
+                    const movePos = getNextPos(Math.round(dog.x), Math.round(dog.y), bestDir);
+                    dog.targetX = movePos.x;
+                    dog.targetY = movePos.y;
                 }
+            } else {
+                // Move toward target
+                dog.x += (dx / dist) * dog.speed;
+                dog.y += (dy / dist) * dog.speed;
             }
         }
 
@@ -1138,20 +1162,31 @@
                     gameState = 'playing';
                 }
             } else {
-                // Wrong - respawn the prey in the CENTER AREA and start dog chase
+                // Wrong - respawn the prey in an OPEN AREA and start dog chase
                 if (caughtPrey) {
                     caughtPrey.caught = false;
-                    // Respawn in center open area (the "ghost house" area)
-                    const centerPositions = [
-                        {x: 9, y: 10}, {x: 10, y: 10},
-                        {x: 8, y: 10}, {x: 11, y: 10},
-                        {x: 9, y: 11}, {x: 10, y: 11}
+                    // Respawn in open corridor positions (NOT the enclosed ghost house)
+                    const openPositions = [
+                        {x: 1, y: 1}, {x: 18, y: 1},      // Top corners
+                        {x: 1, y: 20}, {x: 18, y: 20},    // Bottom corners
+                        {x: 9, y: 4}, {x: 10, y: 4},      // Top middle
+                        {x: 6, y: 10}, {x: 13, y: 10},    // Side corridors
+                        {x: 1, y: 14}, {x: 18, y: 14}     // Mid-side positions
                     ];
-                    const newPos = centerPositions[Math.floor(Math.random() * centerPositions.length)];
-                    caughtPrey.x = newPos.x;
-                    caughtPrey.y = newPos.y;
-                    caughtPrey.targetX = newPos.x;
-                    caughtPrey.targetY = newPos.y;
+                    // Pick a position far from cat
+                    let bestPos = openPositions[0];
+                    let bestDist = 0;
+                    openPositions.forEach(pos => {
+                        const dist = Math.abs(cat.x - pos.x) + Math.abs(cat.y - pos.y);
+                        if (dist > bestDist) {
+                            bestDist = dist;
+                            bestPos = pos;
+                        }
+                    });
+                    caughtPrey.x = bestPos.x;
+                    caughtPrey.y = bestPos.y;
+                    caughtPrey.targetX = bestPos.x;
+                    caughtPrey.targetY = bestPos.y;
                 }
                 document.getElementById('mathModal').classList.add('wrong');
                 setTimeout(() => {
@@ -1171,11 +1206,28 @@
             
             gameState = 'dogChase';
             dog.active = true;
-            dog.x = 10;
-            dog.y = 10;
-            dog.targetX = 10;
-            dog.targetY = 10;
-            dog.speed = 0.1 + (level * 0.015);
+            
+            // Spawn dog in open area AWAY from cat
+            const dogSpawns = [
+                {x: 1, y: 1}, {x: 18, y: 1},
+                {x: 1, y: 20}, {x: 18, y: 20},
+                {x: 6, y: 8}, {x: 13, y: 8}
+            ];
+            let bestSpawn = dogSpawns[0];
+            let bestDist = 0;
+            dogSpawns.forEach(pos => {
+                const dist = Math.abs(cat.x - pos.x) + Math.abs(cat.y - pos.y);
+                if (dist > bestDist) {
+                    bestDist = dist;
+                    bestSpawn = pos;
+                }
+            });
+            
+            dog.x = bestSpawn.x;
+            dog.y = bestSpawn.y;
+            dog.targetX = bestSpawn.x;
+            dog.targetY = bestSpawn.y;
+            dog.speed = 0.12 + (level * 0.01);
             
             document.getElementById('dogWarning').classList.add('active');
             dogChaseTimer = 10;
