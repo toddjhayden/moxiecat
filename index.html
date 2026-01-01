@@ -411,7 +411,7 @@
         }
     </style>
 </head>
-<body>
+<body tabindex="0">
     <div class="game-cabinet">
         <div class="game-title">
             <h1>🐱 CAT HUNT 🐱</h1>
@@ -1287,7 +1287,11 @@
             document.getElementById('startScreen').classList.add('hidden');
             resetMaze();
             initPrey();
+            resetCat();
             gameState = 'playing';
+            // Ensure keyboard focus returns to the game
+            document.getElementById('startButton').blur();
+            document.body.focus();
         });
 
         document.getElementById('restartButton').addEventListener('click', () => {
@@ -1306,6 +1310,14 @@
             initPrey();
             resetCat();
             gameState = 'playing';
+            // Ensure keyboard focus returns to the game
+            document.getElementById('restartButton').blur();
+            document.body.focus();
+        });
+
+        // Click on canvas to ensure focus for keyboard controls
+        canvas.addEventListener('click', () => {
+            document.body.focus();
         });
 
         document.getElementById('mathSubmit').addEventListener('click', () => {
@@ -1322,6 +1334,9 @@
         resetMaze();
         updateUI();
         updateBoostUI();
+        
+        // Focus body for keyboard input
+        document.body.focus();
         
         // Start game loop
         gameLoop();
