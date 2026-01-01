@@ -202,6 +202,13 @@
             color: var(--neon-cyan);
             border-radius: 5px;
             outline: none;
+            -moz-appearance: textfield;
+        }
+
+        .math-input::-webkit-outer-spin-button,
+        .math-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
         }
 
         .math-input:focus {
@@ -653,7 +660,8 @@
             targetY: 10,
             speed: 0.12,
             active: false,
-            animFrame: 0
+            animFrame: 0,
+            lastDirection: ''
         };
 
         // Initialize prey for level
@@ -897,11 +905,21 @@
                 dog.x = dog.targetX;
                 dog.y = dog.targetY;
                 
-                // Get all walkable directions
-                const dirs = ['up', 'down', 'left', 'right'].filter(d => {
+                // Get opposite of last direction to avoid reversing
+                const opposites = { 'up': 'down', 'down': 'up', 'left': 'right', 'right': 'left' };
+                const lastDir = dog.lastDirection || '';
+                const opposite = opposites[lastDir];
+                
+                // Get all walkable directions (excluding reverse unless it's the only option)
+                let dirs = ['up', 'down', 'left', 'right'].filter(d => {
                     const np = getNextPos(Math.round(dog.x), Math.round(dog.y), d);
                     return isWalkable(np.x, np.y);
                 });
+                
+                // Remove opposite direction if other options exist
+                if (dirs.length > 1 && opposite) {
+                    dirs = dirs.filter(d => d !== opposite);
+                }
                 
                 if (dirs.length > 0) {
                     // Pick direction that gets closest to cat
@@ -915,6 +933,8 @@
                             bestDir = d;
                         }
                     });
+                    
+                    dog.lastDirection = bestDir;
                     const movePos = getNextPos(Math.round(dog.x), Math.round(dog.y), bestDir);
                     dog.targetX = movePos.x;
                     dog.targetY = movePos.y;
@@ -1225,9 +1245,34 @@
             
             dog.x = bestSpawn.x;
             dog.y = bestSpawn.y;
-            dog.targetX = bestSpawn.x;
-            dog.targetY = bestSpawn.y;
             dog.speed = 0.12 + (level * 0.01);
+            dog.lastDirection = '';
+            
+            // Immediately set first target toward cat
+            const dirs = ['up', 'down', 'left', 'right'].filter(d => {
+                const np = getNextPos(bestSpawn.x, bestSpawn.y, d);
+                return isWalkable(np.x, np.y);
+            });
+            
+            if (dirs.length > 0) {
+                let bestDir = dirs[0];
+                let bestDistToCat = Infinity;
+                dirs.forEach(d => {
+                    const np = getNextPos(bestSpawn.x, bestSpawn.y, d);
+                    const distToCat = Math.abs(cat.x - np.x) + Math.abs(cat.y - np.y);
+                    if (distToCat < bestDistToCat) {
+                        bestDistToCat = distToCat;
+                        bestDir = d;
+                    }
+                });
+                const firstMove = getNextPos(bestSpawn.x, bestSpawn.y, bestDir);
+                dog.targetX = firstMove.x;
+                dog.targetY = firstMove.y;
+                dog.lastDirection = bestDir;
+            } else {
+                dog.targetX = bestSpawn.x;
+                dog.targetY = bestSpawn.y;
+            }
             
             document.getElementById('dogWarning').classList.add('active');
             dogChaseTimer = 10;
